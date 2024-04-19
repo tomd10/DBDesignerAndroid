@@ -1,0 +1,215 @@
+﻿@page "/batch"
+@using System.Text
+@inject IJSRuntime JS
+<h1>Batch</h1>
+<link rel="stylesheet" href="/styles.css" />
+<script>
+    window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+      const arrayBuffer = await contentStreamReference.arrayBuffer();
+      const blob = new Blob([arrayBuffer]);
+      const url = URL.createObjectURL(blob);
+      const anchorElement = document.createElement('a');
+      anchorElement.href = url;
+      anchorElement.download = fileName ?? '';
+      anchorElement.click();
+      anchorElement.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    window.clipboardCopy = {
+        copyText: function (text) {
+            navigator.clipboard.writeText(text).then(function () {
+                
+            })
+                .catch(function (error) {
+                    alert(error);
+                });
+        }
+    };
+</script>
+<div class="upperButtonContainer">
+<button @onclick="Restart" class="upperButton">Restart app</button>
+<button @onclick="ToggleBatch" class="upperButton">Batch/De novo</button>
+<button @onclick="Copy" class="upperButton">Copy to clipboard</button>
+<button @onclick="Download" class="upperButton">Download file</button>
+@if(DataStore.dbConnection != null)
+{
+    <button @onclick="ExecuteCommands" class="upperButton">Execute commands</button>
+}
+</div>
+@if(batch)
+{
+    <div class="commandsBox">
+        @foreach (string s in DataStore.batch)
+        {
+
+            string[] words = s.Split(" ");
+            <div class="commandLine">
+                @for (int i = 0; i < words.Length; i++)
+                {
+                    string[] subwords = words[i].Split("=");
+                    
+                    string[] subwords1 = words[i].Split("(");
+                    if ((words[i].StartsWith("ENGINE=") || words[i].StartsWith("CHARSET=") || words[i].StartsWith("COMMENT=") ||
+                    words[i].StartsWith("AUTO_INCREMENT=") || words[i].StartsWith("COLLATE=")) && subwords.Length == 2)
+                    {
+                        <span class="keyword">@subwords[0]@("=")</span>
+                        @(subwords[1] + " ")
+                    }
+                    else if (subwords1.Length == 2 && Choices.keywords.Contains(subwords1[0]))
+                    {
+                        <span class="keyword">@subwords1[0]</span>
+                        @("(" + subwords1[1] + " ")
+                    }
+                    else if (Choices.keywords.Contains(words[i]))
+                    {
+                        <span class="keyword">@words[i] @("") </span>
+                    }
+                    else
+                    {
+                        @(words[i] + " ")
+                    }
+
+
+                }
+
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="commandsBox">
+        @foreach (string s in DataStore.batchDeNovo)
+        {
+            Console.WriteLine(s);
+            string[] words = s.Split(" ");
+            <div class="commandLine">
+                @for (int i = 0; i < words.Length; i++)
+                {
+                    string[] subwords = words[i].Split("=");
+                    
+                    string[] subwords1 = words[i].Split("(");
+                    if ((words[i].StartsWith("ENGINE=") || words[i].StartsWith("CHARSET=") || words[i].StartsWith("COMMENT=") ||
+                    words[i].StartsWith("AUTO_INCREMENT=") || words[i].StartsWith("COLLATE=")) && subwords.Length == 2)
+                    {
+                        <span class="keyword">@subwords[0]@("=")</span>
+                        @(subwords[1] + " ")
+                    }
+                    else if (subwords1.Length == 2 && Choices.keywords.Contains(subwords1[0]))
+                    {
+                        <span class="keyword">@subwords1[0]</span>
+
+                        @("("+subwords1[1] + " ")
+                    }
+                    else if (Choices.keywords.Contains(words[i]))
+                    {
+                        <span class="keyword">@words[i] @("") </span>
+                    }
+                    else
+                    {
+                        @(words[i] + " ")
+                    }
+
+
+                }
+
+            </div>
+        }
+    </div>
+
+    <InputText @bind-Value="textToCopy" hidden id="inp"></InputText>
+}
+
+
+
+@code {
+    public bool batch { get; set; } = true;
+    public string textToCopy { get; set; } = "";
+
+    public void ToggleBatch()
+    {
+        batch = !batch;
+    }
+
+    public void ExecuteCommands()
+    {
+        List<string> errors;
+        if (batch)
+        {
+            errors = DataStore.dbConnection.ExecuteBatch(DataStore.batch);
+        }
+        else
+        {
+            errors = DataStore.dbConnection.ExecuteBatch(DataStore.batchDeNovo);
+        }
+
+        if (errors.Count > 0)
+        {
+            string errMsg = "Errors when executing lines:\n";
+            foreach (string err in errors)
+            {
+                errMsg = errMsg + (err + "\n");
+            }
+            JS.InvokeVoidAsync("alert", errMsg);
+        }
+        else
+        {
+            JS.InvokeVoidAsync("alert", "Batch uploaded successfully.");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Methods.CreateBatchDeNovo();
+    }
+
+    public void Restart()
+    {
+        DataStore.databases = new List<Database>();
+        DataStore.databasesLoaded = false;
+        DataStore.activeDatabase = null;
+        DataStore.activeTable = null;
+        DataStore.dbConnection = null;
+        DataStore.batch = new List<string>();
+        DataStore.batchDeNovo = new List<string>();
+    }
+
+    public async void Download()
+    {
+        string result = "";
+        if (batch)
+        {
+            foreach (string s in DataStore.batch) result = result + s + "\n";
+        }
+        else
+        {
+            foreach (string s in DataStore.batchDeNovo) result = result + s + "\n";
+        }
+
+        MemoryStream fileStream = new MemoryStream(Encoding.UTF8.GetBytes(result));
+        string filename = batch ? "incremental.sql" : "denovo.sql";
+        using var streamRef = new DotNetStreamReference(stream: fileStream);
+
+        await JS.InvokeVoidAsync("downloadFileFromStream", filename, streamRef);
+    }
+
+    public async void Copy()
+    {
+        string result = "";
+        if (batch)
+        {
+            foreach (string s in DataStore.batch) result = result + s + "\n";
+        }
+        else
+        {
+            foreach (string s in DataStore.batchDeNovo) result = result + s + "\n";
+        }
+        textToCopy = result;
+        StateHasChanged();
+
+        await JS.InvokeVoidAsync("clipboardCopy.copyText", textToCopy);
+
+
+    }
+}

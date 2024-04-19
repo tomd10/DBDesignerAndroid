@@ -1,0 +1,81 @@
+﻿@page "/tables"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="styles.css" />
+<h1>Tables</h1>
+@if(DataStore.activeDatabase == null)
+{
+    <div class="err">@("No database selected!")</div>
+ 
+}
+else
+{
+    <div class="upperButtonContainer">
+        <button @onclick="@(()=>nav.NavigateTo("/createtable"))" class="upperButton">Create table</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <td>Name</td>
+                <td>Is temporary?</td>
+                <td>Engine</td>
+                <td>Auto increment</td>
+                <td>Charset</td>
+                <td>Collate</td>
+                <td>Columns</td>
+                <td>Edit</td>
+                <td>Drop</td>
+                <td>Comment</td>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                counter = 0;
+            }
+            @foreach (Table t in DataStore.activeDatabase.tables)
+            {
+                int counter2 = counter;
+                <tr>
+                    <td>@t.name</td>
+                    <td>@(t.isTemporary ? "Y" : "N")</td>
+                    <td>@t.engine</td>
+                    <td>@t.auto_increment</td>
+                    <td>@t.charset</td>
+                    <td>@t.collate</td>
+                    <td>@t.columns.Count</td>
+                    <td @onclick="@(() => Edit(counter2))" class="edit">Edit</td>
+                    <td @onclick="@(() => Drop(counter2))" class="drop">Drop</td>
+                    <td>@t.comment</td>
+                </tr>
+                counter = counter + 1;
+            }
+        </tbody>
+    </table>
+}
+
+
+
+@code {
+    int counter = 0;
+
+    public void Edit(int row)
+    {
+        nav.NavigateTo("/altertable/" + row.ToString());
+    }
+
+    public void Drop(int row)
+    {
+        string name, errorMessage;
+        if (Methods.DropTable(row, out name, out errorMessage))
+        {
+
+        }
+        else
+        {
+            JS.InvokeVoidAsync("alert", errorMessage);
+        }
+    } 
+
+
+    }
+

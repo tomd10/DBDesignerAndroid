@@ -1,0 +1,67 @@
+﻿@page "/createdb"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="/styles.css" />
+<h1>Create new database</h1>
+
+<div class="formWrapper">
+<div class="formElementWrapper">
+    <div class="formLabel">@("Name:")</div>
+    <div class="formElement">
+        <InputText @bind-Value="name" />
+    </div>
+</div>
+<div class="formElementWrapper">
+    <div class="formLabel">@("Charset:")</div>
+    <div class="formElement">
+        <select @bind="charset">
+            @foreach (string s in Choices.charsets)
+            {
+                <option>@s</option>
+            }
+        </select>
+    </div>
+</div>
+
+<div class="formElementWrapper">
+    <div class="formLabel">@("Collate:")</div>
+    <div class="formElement">
+        <select @bind="collate">
+            @foreach (string s in Choices.collates)
+            {
+                <option>@s</option>
+            }
+        </select>
+    </div>
+</div>
+
+<button @onclick="CreateDatabase" class="acceptButton">Create database</button>
+</div>
+
+
+@code {
+    public string name { get; set; } = "";
+    public string charset { get; set; } = Choices.charsets[0];
+    public string collate { get; set; } = Choices.collates[0];
+
+    public void CreateDatabase()
+    {
+        string errorMessage = "";
+        if (Methods.CreateDatabase(name, charset, collate, out errorMessage))
+        {
+            //JS.InvokeVoidAsync("alert", "Database " + name + " created successfully.");
+
+            name = "";
+            charset = Choices.charsets[0];
+            collate = Choices.collates[0];
+            
+            StateHasChanged();
+            nav.NavigateTo("/databases");
+        }
+        else
+        {
+            JS.InvokeVoidAsync("alert", errorMessage);
+        }
+
+    }
+}

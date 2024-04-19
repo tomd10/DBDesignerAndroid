@@ -1,0 +1,61 @@
+﻿@page "/dbconnect"
+@inject IJSRuntime JS
+<link rel="stylesheet" href="/styles.css" />
+<h1>Database connection</h1>
+<h2>Current database</h2>
+@if (DataStore.dbConnection == null)
+{
+    <div class="info">@("None")</div>
+    <div class="formWrapper">
+    <div class="formElementWrapper">
+        <div class="formLabel">    @("Hostname:")</div>
+        <div class="formElement">
+           <InputText @bind-Value="hostname" />
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">    @("Username:")</div>
+        <div class="formElement">
+            <InputText @bind-Value="username" />
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">    @("Password:")</div>
+        <div class="formElement">
+            <InputText @bind-Value="password"/>
+        </div>
+    </div>
+    <button @onclick="Login" class="acceptButton">Login</button>
+    </div>
+}
+else
+{
+    <div class="info">@(DataStore.dbConnection.identifier)</div>
+    <button @onclick="Logout" class="acceptButton">Logout</button>
+}
+
+
+@code {
+    public string hostname { get; set; } = "localhost";
+    public string username { get; set; } = "root";
+    public string password { get; set; } = "abba";
+
+    public void Login()
+    {
+        SqlDb db = SqlDb.CreateConnection(hostname, username, password);
+
+        if (db == null)
+        {
+            JS.InvokeVoidAsync("alert", "Database connection failed.");
+        }
+        else DataStore.dbConnection = db;
+    }
+
+    public void Logout()
+    {
+        DataStore.dbConnection.Close();
+        DataStore.dbConnection = null;
+    }
+}

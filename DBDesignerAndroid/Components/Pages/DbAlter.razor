@@ -1,0 +1,85 @@
+﻿@page "/alterdb/{dbIndex}"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="styles.css" />
+<h1>Alter database</h1>
+@if(loaded && db != null)
+{
+    <div class="formElementWrapper">
+        <div class="formLabel">    @("Name:")</div>
+        <div class="formElement">
+            <InputText @bind-Value="name" hidden="true" />
+        </div>
+    </div>
+
+        
+    <br />
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Charset:")</div>
+        <div class="formElement">
+            <select @bind="charset">
+                @foreach (string s in Choices.charsets)
+                {
+                    <option>@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Collate:")</div>
+        <div class="formElement">
+            <select @bind="collate">
+                @foreach (string s in Choices.collates)
+                {
+                    <option>@s</option>
+                }
+            </select>
+        </div>
+    </div>
+    <button @onclick="AlterDatabase" class="acceptButton">Alter database</button>
+}
+else
+{
+    <div class="err">Incorrect database selected!</div>
+}
+
+@code {
+    [Parameter]
+    public string dbIndex { get; set; }
+
+    private bool loaded = false;
+    private Database db = null;
+
+    public string name { get; set; }
+    public string charset { get; set; }
+    public string collate { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        int index = -1;
+        int.TryParse(dbIndex, out index);
+        if (index < 0) return;
+        else
+        {
+            db = Methods.GetNthDatabase(index);
+            loaded = true;
+
+            name = db.name;
+            charset = db.charset;
+            collate = db.collate.Substring(db.charset.Length, db.collate.Length - db.charset.Length);
+        }
+
+        StateHasChanged();
+
+    }
+    public void AlterDatabase()
+    {
+        string statement1 = db.GetAlterCharset(charset);
+        string statement2 = db.GetAlterCollate(charset+collate);
+
+        if (statement1 != null) DataStore.batch.Add(statement1);
+        if (statement2 != null) DataStore.batch.Add(statement2);
+        nav.NavigateTo("/databases");
+    }
+}

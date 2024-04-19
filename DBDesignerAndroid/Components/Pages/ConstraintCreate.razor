@@ -1,0 +1,197 @@
+﻿@page "/createconstraint"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="/styles.css" />
+@if(DataStore.activeDatabase == null)
+{
+    <div class="err">No database selected</div>
+}
+else if (DataStore.activeTable == null)
+{
+    <div class="err">No table selected</div>
+}
+else
+{
+    <div class="formWrapper">
+        <InputRadioGroup @bind-Value="ct">
+            @foreach (var type in Enum.GetValues<Choices.ConstraintTypes>())
+            {
+                <div class="formElementWrapper">
+                    <div class="formLabel">@type</div>
+                    <div class="formElement"><InputRadio Value="type"></InputRadio></div>
+                </div>
+            }
+        </InputRadioGroup>
+    </div>
+    @if (ct == Choices.ConstraintTypes.ForeignKey && DataStore.activeDatabase.tables.Count < 2)
+    {
+        <div class="err">At least two tables are required for FOREIGN KEY constraint.</div>
+    }
+    else
+    {
+        
+    
+    <div class="formWrapper" style="width: 70%;">
+        @if (ct != Choices.ConstraintTypes.PrimaryKey)
+        {
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Name: ")</div>
+            <div class="formElement"><InputText @bind-Value="name" /></div>
+        </div>
+        }
+
+        @if (ct != Choices.ConstraintTypes.ForeignKey)
+        {
+        for (int i = 0; i < DataStore.activeTable.columns.Count; i++)
+        {
+            int i2 = i;
+            <div class="formElementWrapper">
+                <div class="formLabel">@(DataStore.activeTable.columns[i2].name)</div>
+                <div class="formElement"><InputCheckbox @bind-Value="arrayColumn[i2]" /></div>
+            </div>
+        }
+        }
+        else
+        {
+            if (DataStore.activeDatabase.tables.Count < 2)
+            {
+                <div class="err">At least two tables are required for FOREIGN KEY constraint.</div>
+            }
+            else
+            {
+                <table style="margin-top: 1em; margin-left: 0.5em;">
+                    <thead>
+                    <td>@(DataStore.activeTable.name)</td>
+                    <td>
+                        <select @bind="table">
+                                @foreach (string s in Choices.GetTableNames())
+                                {
+                                    if (s != DataStore.activeTable.name)
+                                    {
+                                        if (s != DataStore.activeTable.name)
+                                        {
+                                        <option>@s</option>
+                                        }
+                                    }
+                                }
+
+                        </select>
+                    </td>
+                    </thead>
+                    <tbody>
+                        @{
+                            remoteTable = DataStore.activeDatabase.GetTableByName(table);
+                            if (arrayRemoteColumn == null || (arrayRemoteColumn.Length != remoteTable.columns.Count))
+                            {
+                                arrayRemoteColumn = new bool[remoteTable.columns.Count];
+                            }
+                            max = (DataStore.activeTable.columns.Count > remoteTable.columns.Count) ? DataStore.activeTable.columns.Count : remoteTable.columns.Count;
+                        }
+                        @for (int i = 0; i < max; i++)
+                        {
+                            int counter = i;
+                            <tr>
+                                <td>
+                                    @if (i < DataStore.activeTable.columns.Count)
+                                    {
+                                        <div class="formElementWrapper">
+                                            <div class="formLabel">@(DataStore.activeTable.columns[counter].name)</div>
+                                            <div class="formElement"><InputCheckbox @bind-Value="arrayColumn[counter]" /></div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @("")
+                                    }
+                                </td>
+                                <td>
+                                    @if (i < remoteTable.columns.Count)
+                                    {
+                                        <div class="formElementWrapper">
+                                            <div class="formLabel">@(remoteTable.columns[counter].name)</div>
+                                            <div class="formElement"><InputCheckbox @bind-Value="arrayRemoteColumn[counter]" /></div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @("")
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+            }
+
+        }
+        <button @onclick="CreateConstraint" class="acceptButton">Create constraint</button>
+
+    </div>
+
+    }
+
+}
+
+@code {
+    public Choices.ConstraintTypes ct { get; set; }
+    public string name { get; set; } = "";
+    public bool[] arrayColumn { get; set; }
+    public Table localTable { get; set; }
+
+    public bool[] arrayRemoteColumn { get; set; }
+    public Table remoteTable { get; set; }
+    public int max { get; set; }
+
+    public string table { get; set; } /*= (DataStore.activeDatabase != null && DataStore.activeDatabase.tables.Count > 0) ? Choices.GetTableNames()[0] : "";*/
+
+    public Column localColumn { get; set; } = DataStore.activeTable.columns[0];
+    public Column remoteColumn { get; set; }
+
+    public void CreateConstraint()
+    {
+        string errorMessage;
+        if (ct != Choices.ConstraintTypes.ForeignKey)
+        {
+            if (!Methods.CreateSimpleConstraint(ct, name, arrayColumn, out errorMessage))
+            {
+                JS.InvokeVoidAsync("alert", errorMessage);
+            }
+            else
+            {
+                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+            }
+        }
+        else
+        {
+            if (!Methods.CreateFKConstraint(name, arrayColumn, remoteTable, arrayRemoteColumn, out errorMessage))
+            {
+                JS.InvokeVoidAsync("alert", errorMessage);
+            }
+            else
+            {
+                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+            }
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        arrayColumn = new bool[DataStore.activeTable.columns.Count];
+        Console.WriteLine(DataStore.activeDatabase.tables[0] != DataStore.activeTable);
+        if (DataStore.activeDatabase.tables.Count == 1)
+        {
+            table = "";
+        }
+        else if (DataStore.activeDatabase.tables[0] != DataStore.activeTable)
+        {
+            table = Choices.GetTableNames()[0];
+        }
+        else
+        {
+            table = Choices.GetTableNames()[1];
+        }
+        StateHasChanged();
+
+    }
+
+}

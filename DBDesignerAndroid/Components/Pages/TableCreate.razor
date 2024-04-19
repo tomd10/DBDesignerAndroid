@@ -1,0 +1,111 @@
+﻿@page "/createtable"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="/styles.css" />
+<h1>Create new table</h1>
+@if (DataStore.activeDatabase == null)
+{
+    @("No database selected!")
+}
+else
+{
+    <div class="formWrapper">
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Name: ")</div>
+        <div class="formElement"><InputText @bind-Value="name" /></div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Temporary?")</div>
+        <div class="formElement"><InputCheckbox @bind-Value="isTemporary" /></div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Engine:")</div>
+        <div class="formElement">
+            <select @bind="engine">
+                @foreach (string s in Choices.engines)
+                {
+                    <option>@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Charset:")</div>
+        <div class="formElement">
+            <select @bind="charset">
+                @foreach (string s in Choices.charsets)
+                {
+                    <option>@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Collate:")</div>
+        <div class="formElement">
+            <select @bind="collate">
+                @foreach (string s in Choices.collates)
+                {
+                    <option>@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Auto increment: ")</div>
+        <div class="formElement"><InputNumber @bind-Value="autoIncrement" /></div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Comment: ")</div>
+        <div class="formElement"><InputText @bind-Value="comment" /></div>
+    </div>
+
+
+
+
+    <button @onclick="CreateTable" class="acceptButton">Create</button>
+    </div>
+}
+
+
+
+
+
+@code {
+    public string name { get; set; } = "";
+    public bool isTemporary { get; set; } = false;
+    public string engine { get; set; } = Choices.engines[0];
+    public string charset { get; set; } = Choices.charsets[0];
+    public string collate { get; set; } = Choices.collates[0];
+    public int autoIncrement { get; set; } = 0;
+    public string comment { get; set; } = "";
+
+    public void CreateTable()
+    {
+        string errorMessage = "";
+        if (Methods.CreateTable(name, isTemporary, engine, charset, charset+collate, autoIncrement, comment, out errorMessage))
+        {
+            //JS.InvokeVoidAsync("alert", "Table " + name + " created successfully.");
+            StateHasChanged();
+            nav.NavigateTo("/tables");
+        }
+        else
+        {
+            JS.InvokeVoidAsync("alert", errorMessage);
+        }
+
+    }
+
+    public async void UpdateDropdown(ProgressEventArgs e)
+    {
+        Console.WriteLine("cs");
+    }
+
+
+}

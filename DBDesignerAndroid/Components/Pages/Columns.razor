@@ -1,0 +1,332 @@
+﻿@page "/columns"
+@page "/columns/{tableIndex}"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="styles.css" />
+@if(DataStore.activeDatabase == null)
+{
+    <div class="err">@("No database selected!")</div>
+}
+else if (DataStore.activeDatabase.tables.Count == 0)
+{
+    <div class="err">@("Empty database!")</div>
+}
+else
+{
+    <h1>Columns</h1>
+    <select @bind="table" class="upperSelect">
+        @foreach (string s in Choices.GetTableNames())
+        {
+            <option>@s</option>
+        }
+    </select>
+    <div class="upperButtonContainer">
+        <button @onclick="navColumns" class="upperButton">Create column</button>
+    </div>
+
+
+    <table>
+        <thead>
+            <tr>
+                <td>Name</td>
+                <td>Type</td>
+                <td>Size</td>
+                <td>NULL</td>
+                <td>Default</td>
+                <td>Default value</td>
+                <td>Options</td>
+                <td>Zerofill</td>
+                <td>Unsigned</td>
+                <td>Auto increment</td>
+                <td>Charset</td>
+                <td>Collate</td>
+                <td>Edit</td>
+                <td>Drop</td>
+                <td>Drop AI</td>
+                <td>Comment</td>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                counter = 0;
+            }
+            @foreach (Column c in DataStore.activeDatabase.GetTableByName(table).columns)
+            {
+                int counter2 = counter;
+                <tr>
+                    <td>@c.name</td>
+                    <td>@c.type</td>
+                    <td>
+                        @if(c is TextColumn)
+                        {
+                            @((c as TextColumn).size)
+                            
+                        }
+                        @if(c is IntegerColumn)
+                        {
+                            @((c as IntegerColumn).size)
+                        }
+                        @if (c is BinaryColumn)
+                        {
+                            @((c as BinaryColumn).size)
+                        }
+                        @if (c is DecimalColumn)
+                        {
+                            @((c as DecimalColumn).size)
+                            @(", ")
+                            @((c as DecimalColumn).d)
+                        }
+                        else @("")
+                    </td>
+                    <td>@(c.nullAllowed ? "Y" : "N")</td>
+                    <td>
+                        @(c.defaultValueSupported ? "Y" : "N")
+                    </td>
+                    <td>
+                        @if (c.defaultValue == null)
+                        {
+                            @("NULL")
+                        }
+                        else if(c is TextColumn)
+                        {
+                            @("'"+c.defaultValue+"'")
+                        }
+                        else
+                        {
+                            @(c.defaultValue)
+                        }
+
+                    </td>
+                    <td>
+                        @if(c is EnumColumn)
+                        {
+                            @((c as EnumColumn).GetOptions())
+                        }
+                        else @("")
+                    </td>
+                    <td>
+                        @if(c is IntegerColumn)
+                        {
+                            @((c as IntegerColumn).zerofill ? "Y" : "N")
+                        }
+                        else @("")
+                    </td>
+                    <td>
+                        @if (c is IntegerColumn)
+                        {
+                            @((c as IntegerColumn).unsigned ? "Y" : "N")
+                        }
+                        else @("")
+                    </td>
+                    <td>
+                        @if (c is IntegerColumn)
+                        {
+                            @((c as IntegerColumn).autoincrement ? "Y" : "N")
+                        }
+                        else @("")
+                    </td>
+                    <td>
+                        @if(c is TextColumn)
+                        {
+                            @((c as TextColumn).charset)
+                        }
+                        else @("")
+                    </td>
+                    <td>
+                        @if (c is TextColumn)
+                        {
+                            @((c as TextColumn).collate)
+                        }
+                        else
+                            @("")
+
+                    </td>
+                    <td @onclick="@(() => Edit(counter2))" class="edit">Edit</td>
+                    <td @onclick="@(() => Drop(counter2))" class="drop">Drop</td>
+                    <td @onclick="@(() => DropAI(counter2))" class="dropai">
+                        @if (c is IntegerColumn && (c as IntegerColumn).autoincrement)
+                        {
+                            @("Drop")
+                        }
+                    </td>
+                    <td>@c.comment</td>
+                </tr>
+                counter = counter + 1;
+            }
+        </tbody>
+    </table>
+
+    <h1>Constraints</h1>
+    <div class="upperButtonContainer">
+        <button @onclick="navConstraints" class="upperButton">Create constraint</button>
+    </div>
+
+    <table>
+        <thead>
+            <td>Name</td>
+            <td>Type</td>
+            <td>Local columns</td>
+            <td>Remote table</td>
+            <td>Remote columns</td>
+            <td>Edit</td>
+            <td>Drop</td>
+        </thead>
+        <tbody>
+            @{
+                counter3 = 0;
+            }
+            @foreach (Constraint c in DataStore.activeDatabase.GetTableByName(table).constraints)
+            {
+                int counter4 = counter3;
+
+                if (c is ConstraintPK)
+                {
+                    ConstraintPK con = c as ConstraintPK;
+                    <tr>
+                    <td>@("")</td>
+                    <td>@("PRIMARY KEY")</td>
+                    <td>@(con.GetLocalColumns())</td>
+                    <td></td>
+                    <td></td>
+                    <td @onclick="@(() => EditConstraint(counter4))" class="edit">Edit</td>
+                    <td @onclick="@(() => DropConstraint(counter4))" class="drop">Drop</td>
+                    </tr>
+                }
+
+                if (c is ConstraintUQ)
+                {
+                    ConstraintUQ con = c as ConstraintUQ;
+                    <tr>
+                <td>@(con.name)</td>
+                <td>@("UNIQUE KEY")</td>
+                <td>@(con.GetLocalColumns())</td>
+                <td></td>
+                <td></td>
+                <td @onclick="@(() => EditConstraint(counter4))" class="edit">Edit</td>
+                <td @onclick="@(() => DropConstraint(counter4))" class="drop">Drop</td>
+                </tr>
+                }
+
+                if (c is ConstraintK)
+                {
+                    ConstraintK con = c as ConstraintK;
+                <tr>
+                <td>@(con.name)</td>
+                <td>@("KEY")</td>
+                <td>@(con.GetLocalColumns())</td>
+                <td></td>
+                <td></td>
+                <td @onclick="@(() => EditConstraint(counter4))" class="edit">Edit</td>
+                <td @onclick="@(() => DropConstraint(counter4))" class="drop">Drop</td>
+                </tr>
+                }
+
+                if (c is ConstraintFK)
+                {
+                    ConstraintFK con = c as ConstraintFK;
+                    <tr>
+                <td>@(con.name)</td>
+                <td>@("FOREIGN KEY")</td>
+                <td>@(con.GetLocalColumns())</td>
+                <td>@(con.GetRemoteTable())</td>
+                <td>@(con.GetRemoteColumns())</td>
+                <td @onclick="@(() => EditConstraint(counter4))" class="edit">Edit</td>
+                <td @onclick="@(() => DropConstraint(counter4))" class="drop">Drop</td>
+                </tr>
+                }
+
+                counter3 = counter3 + 1;
+            }
+        </tbody>
+    </table>
+}
+
+
+
+@code {
+    [Parameter]
+    public string tableIndex { get; set; }
+    public string table { get; set; } = (DataStore.activeDatabase != null && DataStore.activeDatabase.tables.Count > 0) ? Choices.GetTableNames()[0] : "";
+    int counter = 0;
+    int counter3 = 0; 
+
+    public void Edit(int row)
+    {
+        string errorMessage;
+        DataStore.activeTable = DataStore.activeDatabase.GetTableByName(table);
+        if (!Methods.AlterColumn(row, out errorMessage))
+        {
+            JS.InvokeVoidAsync("alert", errorMessage);
+        }
+        else
+        {
+            nav.NavigateTo("/altercolumn/" + row.ToString());
+        }
+    }
+
+    public void Drop(int row)
+    {
+        string errorMessage;
+        DataStore.activeTable = DataStore.activeDatabase.GetTableByName(table);
+        if (!Methods.DropColumn(row, out errorMessage))
+        {
+            JS.InvokeVoidAsync("alert", errorMessage);
+        }
+        else
+        {
+
+        }
+    } 
+
+    public void DropAI(int row)
+    {
+        DataStore.activeTable = DataStore.activeDatabase.GetTableByName(table);
+        Methods.DropAutoIncrement(row);
+    }
+
+    public void EditConstraint(int row)
+    {
+
+    }
+
+    public void DropConstraint(int row)
+    {
+        string errorMessage;
+        DataStore.activeTable = DataStore.activeDatabase.GetTableByName(table);
+        if (!Methods.DropConstraint(row, out errorMessage))
+        {
+            JS.InvokeVoidAsync("alert", errorMessage);
+        }
+        else
+        {
+
+        }
+    }
+
+    public void navColumns()
+    {
+        DataStore.activeTable = DataStore.activeDatabase.GetTableByName(table);
+        nav.NavigateTo("/createcolumn");
+    }
+
+    public void navConstraints()
+    {
+        DataStore.activeTable = DataStore.activeDatabase.GetTableByName(table);
+        nav.NavigateTo("/createconstraint");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        int index = -1;
+        int.TryParse(tableIndex, out index);
+        if (DataStore.activeDatabase != null && DataStore.activeDatabase.tables.Count > 0 &&
+            index > 0 && index < DataStore.activeDatabase.tables.Count)
+        {
+            table = DataStore.activeDatabase.tables[index].name;
+        }
+
+        StateHasChanged();
+
+    }
+}
+

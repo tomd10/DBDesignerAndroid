@@ -1,0 +1,278 @@
+﻿@page "/createcolumn"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="/styles.css" />
+@if(DataStore.activeDatabase == null)
+{
+    <div class="err">No database selected</div>
+}
+else if (DataStore.activeTable == null)
+{
+    <div class="err">No table selected</div>
+}
+else
+{
+    <h1>Create new column</h1>
+    <div class="formWrapper">
+    <InputRadioGroup @bind-Value="ct">
+        @foreach (var type in Enum.GetValues<Choices.ColumnTypes>())
+        {
+            <div class="formElementWrapper">
+                    <div class="formLabel">@type</div>
+                    <div class="formElement"><InputRadio Value="type"></InputRadio></div>
+            </div>
+        }
+    </InputRadioGroup>
+    </div>
+    <div class="formWrapper">
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Name: ")</div>
+        <div class="formElement"><InputText @bind-Value="name" /></div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Type: ")</div>
+        <div class="formElement">
+            <select @bind="type" id="cs">
+                @if (!Choices.GetTypeNames(ct).Contains(type))
+                {
+                    type = Choices.GetTypeNames(ct)[0];
+                }
+                @foreach (string s in Choices.GetTypeNames(ct))
+                {
+                    <option value="@s">@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Null allowed?")</div>
+        <div class="formElement"><InputCheckbox @bind-Value="nullAllowed" /></div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Default value: ")</div>
+        <div class="formElement"><InputText @bind-Value="defaultValue" /></div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Comment: ")</div>
+        <div class="formElement"><InputText @bind-Value="comment" /></div>
+    </div>
+
+    @if (ct == Choices.ColumnTypes.Text)
+    {
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Size: ")</div>
+            <div class="formElement"><InputNumber @bind-Value="size" /></div>
+        </div>
+
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Charset:")</div>
+            <div class="formElement">
+                <select @bind="charset">
+                    @foreach (string s in Choices.charsets)
+                    {
+                        <option>@s</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Collate:")</div>
+            <div class="formElement">
+                <select @bind="collate">
+                    @foreach (string s in Choices.collates)
+                    {
+                        <option>@s</option>
+                    }
+                </select>
+            </div>
+        </div>
+    }
+    else if (ct == Choices.ColumnTypes.Integer)
+    {
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Size: ")</div>
+            <div class="formElement"><InputNumber @bind-Value="size" /></div>
+        </div>
+
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Unsigned?")</div>
+            <div class="formElement"><InputCheckbox @bind-Value="unsigned" /></div>
+        </div>
+
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Zero filled?")</div>
+            <div class="formElement"><InputCheckbox @bind-Value="zerofill" /></div>
+        </div>
+
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Auto increment?")</div>
+            <div class="formElement"><InputCheckbox @bind-Value="autoIncrement" /></div>
+        </div>
+    }
+    else if (ct == Choices.ColumnTypes.Decimal)
+    {
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Size: ")</div>
+            <div class="formElement"><InputNumber @bind-Value="size" /></div>
+        </div>
+
+        <div class="formElementWrapper">
+            <div class="formLabel">@("d: ")</div>
+            <div class="formElement"><InputNumber @bind-Value="d" /></div>
+        </div>
+    }
+    else if (ct == Choices.ColumnTypes.Enum)
+    {
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Options (separate by ,): ")</div>
+            <div class="formElement"><InputText @bind-Value="options" /></div>
+        </div>
+    }
+    else if (ct == Choices.ColumnTypes.Binary)
+    {
+        <div class="formElementWrapper">
+            <div class="formLabel">@("Size: ")</div>
+            <div class="formElement"><InputNumber @bind-Value="size" /></div>
+        </div>
+    }
+    else if (ct == Choices.ColumnTypes.DateTime)
+    {
+
+    }
+
+
+
+
+
+
+    <button @onclick="CreateTable" class="acceptButton">Create</button>
+    </div>
+}
+
+
+@code {
+    private int table { get; set; }
+
+    public Choices.ColumnTypes ct { get; set; }
+
+    public string name { get; set; } = "";
+    public string type { get; set; }
+    public bool nullAllowed { get; set; } = false;
+    public string defaultValue { get; set; } = "";
+    public string comment { get; set; } = "";
+
+    public int size { get; set; } = 0;
+
+    public string charset { get; set; } = Choices.charsets[0];
+    public string collate { get; set; } = Choices.collates[0];
+
+    public bool zerofill { get; set; } = false;
+    public bool unsigned { get; set; } = false;
+    public bool autoIncrement { get; set; } = false;
+
+    public int d { get; set; }
+
+    public string options { get; set; }
+
+    public void CreateTable()
+    {
+        string errorMessage;
+        if (ct == Choices.ColumnTypes.Text)
+        {
+
+            if (!Methods.CreateTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, out errorMessage))
+            {
+                JS.InvokeVoidAsync("alert", errorMessage);
+            }
+            else
+            {
+                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+            }
+        }
+
+        if (ct == Choices.ColumnTypes.Integer)
+        {
+            if (size == 0)
+            {
+                if (type == "INT") size = 11;
+                if (type == "BIGINT") size = 20;
+                if (type == "SMALLINT") size = 6;
+                if (type == "TINYINT") size = 4;
+                if (type == "MEDIUMINT") size = 9;
+            }
+
+            if (!Methods.CreateIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, out errorMessage))
+            {
+                JS.InvokeVoidAsync("alert", errorMessage);
+            }
+            else
+            {
+                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+            }
+        }
+
+        if (ct == Choices.ColumnTypes.Decimal)
+        {
+            if (size == 0) size = 10;
+            if (d == 0) d = 2;
+
+            if(!Methods.CreateDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, out errorMessage))
+            {
+                JS.InvokeVoidAsync("alert", errorMessage);
+            }
+            else
+            {
+                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+            }
+        }
+
+        if (ct == Choices.ColumnTypes.Binary)
+        {
+            if(!Methods.CreateBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, out errorMessage))
+            {
+                JS.InvokeVoidAsync("alert", errorMessage);
+            }
+            else
+            {
+                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+            }
+        }
+
+        if (ct == Choices.ColumnTypes.Enum)
+        {
+            if (!Methods.CreateEnumColumn(name, type, nullAllowed, defaultValue, comment, options, out errorMessage))
+            {
+                JS.InvokeVoidAsync("alert", errorMessage);
+            }
+            else
+            {
+                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+            }
+        }
+
+        if (ct == Choices.ColumnTypes.DateTime)
+        {
+            if (!Methods.CreateDateTimeColumn(name, type, nullAllowed, defaultValue, comment, out errorMessage))
+            {
+                JS.InvokeVoidAsync("alert", errorMessage);
+            }
+            else
+            {
+                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+            }
+        }
+
+    }
+
+    public async void UpdateDropdown(ProgressEventArgs e)
+    {
+        Console.WriteLine("cs");
+    }
+
+
+}

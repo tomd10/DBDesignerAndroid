@@ -1,0 +1,81 @@
+﻿@page "/databases"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="styles.css" />
+<h1>Databases</h1>
+<div class="upperButtonContainer">
+@{
+    if (DataStore.dbConnection != null && !DataStore.databasesLoaded)
+    {
+        <button @onclick="LoadConnect" class="upperButton">Load databases from connection</button> <br>
+        DataStore.databasesLoaded = true;
+    }
+}
+
+    <button @onclick="@(()=>nav.NavigateTo("/createdb"))" class="upperButton">Create database</button>
+</div>
+<table>
+    <thead>
+        <tr>
+            <td>Name</td>
+            <td>Charset</td>
+            <td>Collate</td>
+            <td>Edit</td>
+            <td>Drop</td>
+            <td>Active</td>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            counter = 0;
+        }
+        @foreach (Database db in DataStore.databases)
+        {
+            int counter2 = counter;
+            <tr>
+                <td>@db.name</td>
+                <td>@db.charset</td>
+                <td>@db.collate</td>
+                <td @onclick="@(() => Edit(counter2))" class="edit">Edit</td>
+                <td @onclick="@(() => Drop(counter2))" class="drop">Drop</td>
+                <td @onclick="@(() => Active(counter2))" class="activate">
+                    @if (DataStore.activeDatabase != db)
+                    {
+                        @("Activate")
+                    }
+                </td>
+            </tr>
+            counter = counter + 1;
+        }
+    </tbody>
+</table>
+@code {
+    int counter = 0;
+    public void LoadConnect()
+    {
+        Methods.LoadDatabases();
+        StateHasChanged();
+    }
+
+    public void Edit(int row)
+    {
+        nav.NavigateTo("/alterdb/" + row.ToString());
+    }
+
+    public void Drop(int row)
+    {
+        string message;
+        Methods.DropDatabase(row, out message);
+    }
+
+    public void Active(int row)
+    {
+        DataStore.activeDatabase = Methods.GetNthDatabase(row);
+        StateHasChanged();
+    }
+
+    public void CreateDatabase()
+    {
+        
+    }
+}

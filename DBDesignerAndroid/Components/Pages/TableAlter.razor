@@ -1,0 +1,131 @@
+﻿@page "/altertable/{tableIndex}"
+@inject IJSRuntime JS
+@inject NavigationManager nav
+<link rel="stylesheet" href="/styles.css" />
+<h1>Alter table</h1>
+@if (DataStore.activeDatabase == null)
+{
+    <div class="err">No database selected.</div>
+}
+else if (table == null)
+{
+    <div class="err">No table found.</div>
+}
+else
+{
+    <div class="formWrapper">
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Name: ")</div>
+        <div class="formElement"><InputText @bind-Value="name" /></div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Engine:")</div>
+        <div class="formElement">
+            <select @bind="engine">
+                @foreach (string s in Choices.engines)
+                {
+                    <option>@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Charset:")</div>
+        <div class="formElement">
+            <select @bind="charset">
+                @foreach (string s in Choices.charsets)
+                {
+                    <option>@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Collate:")</div>
+        <div class="formElement">
+            <select @bind="collate">
+                @foreach (string s in Choices.collates)
+                {
+                    <option>@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Auto increment: ")</div>
+        <div class="formElement"><InputNumber @bind-Value="autoIncrement" /></div>
+    </div>
+
+    <div class="formElementWrapper">
+        <div class="formLabel">@("Comment: ")</div>
+        <div class="formElement"><InputText @bind-Value="comment" /></div>
+    </div>
+
+
+
+    <button @onclick="AlterTable" class="acceptButton">Alter table</button>
+    </div> 
+}
+
+
+
+
+
+@code {
+    [Parameter]
+    public string tableIndex { get; set; }
+    public Table table { get; set; }
+
+    public string name { get; set; } = "";
+    public string engine { get; set; } = Choices.engines[0];
+    public string charset { get; set; } = Choices.charsets[0];
+    public string collate { get; set; } = Choices.collates[0];
+    public int autoIncrement { get; set; } = 0;
+    public string comment { get; set; } = "";
+
+    public void AlterTable()
+    {
+        string errorMessage = "";
+        if (Methods.AlterTable(table, name, autoIncrement, charset, charset+collate, engine, comment, out errorMessage))
+        {
+            StateHasChanged();
+            nav.NavigateTo("/tables");
+        }
+        else
+        {
+            JS.InvokeVoidAsync("alert", errorMessage);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (DataStore.activeDatabase != null)
+        {
+            int index = -1;
+            int.TryParse(tableIndex, out index);
+            if (index < 0) return;
+            else
+            {
+                if (DataStore.activeDatabase.tables.Count > index)
+                {
+                    table = DataStore.activeDatabase.tables[index];
+
+                    name = table.name;
+                    engine = table.engine;
+                    charset = table.charset;
+                    collate = table.collate.Substring(table.charset.Length, table.collate.Length - table.charset.Length);
+
+                    int ai = 0;
+                    int.TryParse(table.auto_increment, out ai);
+                    autoIncrement = ai;
+                }
+            }
+
+            StateHasChanged();
+        }
+    }
+}
