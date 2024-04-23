@@ -14,26 +14,26 @@
         public static readonly List<string> engines = new List<string>() { "InnoDB", "Aria", "MEMORY" };
         public static readonly List<string> keywords = new List<string>() {"CREATE", "TABLE", "DATABASE", "IF", "NOT", "EXISTS", "DEFAULT", "NULL", 
             "ENGINE", "AUTO_INCREMENT", "DROP", "ALTER", "CHARACTER", "SET", "COLLATE", "COLUMN", "KEY", "CONSTRAINT", "PRIMARY", "UNIQUE", "FOREIGN", "UNSIGNED",
-        "ZEROFILL", "ADD", "RENAME", "CHANGE", "REFERENCES", "DATE", "INT", "SMALLINT", "MEDIUMINT", "TINYINT", "COMMENT", "BIGINT", "CHAR", "VARCHAR",
+        "ZEROFILL", "ADD", "RENAME", "CHANGE", "REFERENCES", "DATE", "INT", "SMALLINT", "MEDIUMINT", "TINYINT", "COMMENT", "BIGINT", "CHAR", "VARCHAR", "\nConstraint",
         "TEXT", "ENUM"};
 
 
         public static List<string> dbNames = new List<string>();
         public static List<string> tableNames = new List<string>();
 
-        public static void SetDbNames()
+        public static void SetDbNames(DbService ctx)
         {
             dbNames = new List<string>();
-            foreach (Database database in DataStore.databases)
+            foreach (Database database in ctx.databases)
             {
                 dbNames.Add(database.name);
             }
         }
 
-        public static void SetTableNames()
+        public static void SetTableNames(DbService ctx)
         {
             tableNames = new List<string>();
-            foreach (Table t in DataStore.activeDatabase.tables)
+            foreach (Table t in ctx.activeDatabase.tables)
             {
                 tableNames.Add(t.name);
             }
@@ -54,12 +54,12 @@
             else return datetimeColumn;
         }
 
-        public static List<string> GetTableNames()
+        public static List<string> GetTableNames(DbService ctx)
         {
             List<string> names = new List<string>();
-            if (DataStore.activeDatabase != null)
+            if (ctx.activeDatabase != null)
             {
-                foreach (Table t in DataStore.activeDatabase.tables)
+                foreach (Table t in ctx.activeDatabase.tables)
                 {
                     names.Add(t.name);
                 }

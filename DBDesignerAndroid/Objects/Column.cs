@@ -73,7 +73,7 @@
                 return new DateTimeColumn(parent, s);
             }
 
-            return null;
+            throw new NotImplementedException("Unsupported column type.");
         }
 
         public List<Constraint> GetColumnReferences()
@@ -158,6 +158,7 @@
             this.defaultValueSupported = defaultValueSupported;
             this.defaultValue = defaultValue;
             this.parent = parent;
+            this.comment = comment;
         }
 
         public TextColumn(Table parent, string cmd) : base(parent, cmd)
@@ -220,6 +221,7 @@
             this.defaultValue = defaultValue;
             this.parent = parent;
             this.options = fields;
+            this.comment = comment;
         }
 
         public EnumColumn(Table parent, string cmd) : base(parent, cmd)
@@ -287,6 +289,7 @@
             this.unsigned = unsigned;
             this.autoincrement = autoincrement;
             this.parent = parent;
+            this.comment = comment;
         }
 
         public IntegerColumn(Table parent, string cmd) : base(parent, cmd)
@@ -343,6 +346,7 @@
             this.parent = parent;
             this.size = size;
             this.d = d;
+            this.comment = comment;
         }
 
         public DecimalColumn(Table parent, string cmd) : base(parent, cmd)
@@ -394,6 +398,7 @@
             this.defaultValue = defaultValue;
             this.parent = parent;
             this.size = size;
+            this.comment = comment;
         }
 
         public BinaryColumn(Table parent, string cmd) : base(parent, cmd)
@@ -452,6 +457,7 @@
             this.defaultValue = defaultValue;
             this.parent = parent;
             //this.format = format;
+            this.comment = comment;
         }
 
         public DateTimeColumn(Table parent, string cmd) : base(parent, cmd)

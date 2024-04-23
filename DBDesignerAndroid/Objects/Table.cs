@@ -81,14 +81,13 @@
             }
             result = result.Substring(0,result.Length - 2);
             result = result + "\n) ";
-            result = result + "ENGINE=" + engine + " AUTO_INCREMENT=" + auto_increment + " DEFAULT CHARSET=" + charset + " COLLATE=" + collate + " COMMENT='" + comment + "';";
-            Console.WriteLine("#######" + comment);
+            result = result + "ENGINE=" + engine + " AUTO_INCREMENT=" + auto_increment + " DEFAULT CHARSET=" + charset + " COLLATE=" + collate + " COMMENT='" + comment + "' ;";
             return result;
         }
 
         public string GetDropStatement()
         {
-            return "DROP TABLE IF EXISTS `"+ parent.name + "`.`"+name+"`;";
+            return "DROP TABLE IF EXISTS `"+ parent.name + "`.`"+name+"` ;";
         }
 
         public bool GetColumnNameAvailable(string s)
@@ -144,7 +143,7 @@
 
         public string GetModifyColumn(Column oldCol, Column newCol)
         {
-            return "ALTER TABLE `" + newCol.name + "` CHANGE COLUMN `" + oldCol.name + "` " + newCol.GetStatement() + ";";
+            return "ALTER TABLE `" + newCol.name + "` CHANGE COLUMN `" + oldCol.name + "` " + newCol.GetStatement() + " ;";
         }
 
         public bool GetAutoIncrement()
@@ -203,7 +202,7 @@
 
         public string GetAlterName(string newName)
         {
-            return "ALTER TABLE `" + this.parent.name + "`.`" + name + "` RENAME '" + newName + "';"; 
+            return "ALTER TABLE `" + this.parent.name + "`.`" + name + "` RENAME `" + this.parent.name + "`.`" + newName + "` ;"; 
         }
     }
 }

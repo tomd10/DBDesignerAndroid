@@ -247,12 +247,12 @@
             return true;
         }
 
-        public static bool CheckDatabaseName(string name, out string errorMessage)
+        public static bool CheckDatabaseName(string name, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage)) return false;
             else
             {
-                foreach (Database d in DataStore.databases)
+                foreach (Database d in ctx.databases)
                 {
                     if (d.name == name)
                     {
@@ -265,12 +265,12 @@
             }
         }
 
-        public static bool CheckTableName(string name, out string errorMessage)
+        public static bool CheckTableName(string name, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage)) return false;
             else
             {
-                foreach (Table t in DataStore.activeDatabase.tables)
+                foreach (Table t in ctx.activeDatabase.tables)
                 {
                     if (t.name == name)
                     {
@@ -283,13 +283,13 @@
             }
         }
 
-        public static bool CheckTextColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, string charset, string collate, out string errorMessage)
+        public static bool CheckTextColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, string charset, string collate, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage))
             {
                 return false;
             }
-            if (!DataStore.activeTable.GetColumnNameAvailable(name))
+            if (!ctx.activeTable.GetColumnNameAvailable(name))
             {
                 errorMessage = "Duplicate column name.";
                 return false;
@@ -312,13 +312,13 @@
             return true;
         }
 
-        public static bool CheckIntegerColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, bool unsigned, bool zerofill, bool autoIncrement, out string errorMessage)
+        public static bool CheckIntegerColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, bool unsigned, bool zerofill, bool autoIncrement, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage))
             {
                 return false;
             }
-            if (!DataStore.activeTable.GetColumnNameAvailable(name))
+            if (!ctx.activeTable.GetColumnNameAvailable(name))
             {
                 errorMessage = "Duplicate column name.";
                 return false;
@@ -328,7 +328,7 @@
                 errorMessage = "ZEROFILLed column must be UNSIGNED.";
                 return false;
             }
-            if (DataStore.activeTable.GetAutoIncrement() && autoIncrement)
+            if (ctx.activeTable.GetAutoIncrement() && autoIncrement)
             {
                 errorMessage = "There can be only one auto-incremented columns.";
                 return false;
@@ -351,13 +351,13 @@
 
         }
 
-        public static bool CheckDecimalColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, int d, out string errorMessage)
+        public static bool CheckDecimalColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, int d, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage))
             {
                 return false;
             }
-            if (!DataStore.activeTable.GetColumnNameAvailable(name))
+            if (!ctx.activeTable.GetColumnNameAvailable(name))
             {
                 errorMessage = "Duplicate column name.";
                 return false;
@@ -379,13 +379,13 @@
             return true;
         }
 
-        public static bool CheckEnumColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, string options, out string errorMessage)
+        public static bool CheckEnumColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, string options, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage))
             {
                 return false;
             }
-            if (!DataStore.activeTable.GetColumnNameAvailable(name))
+            if (!ctx.activeTable.GetColumnNameAvailable(name))
             {
                 errorMessage = "Duplicate column name.";
                 return false;
@@ -414,13 +414,13 @@
             return true;
         }
 
-        public static bool CheckBinaryColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, out string errorMessage)
+        public static bool CheckBinaryColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage))
             {
                 return false;
             }
-            if (!DataStore.activeTable.GetColumnNameAvailable(name))
+            if (!ctx.activeTable.GetColumnNameAvailable(name))
             {
                 errorMessage = "Duplicate column name.";
                 return false;
@@ -442,13 +442,13 @@
             return true;
         }
 
-        public static bool CheckDateTimeColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, out string errorMessage)
+        public static bool CheckDateTimeColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage))
             {
                 return false;
             }
-            if (!DataStore.activeTable.GetColumnNameAvailable(name))
+            if (!ctx.activeTable.GetColumnNameAvailable(name))
             {
                 errorMessage = "Duplicate column name.";
                 return false;
@@ -465,13 +465,13 @@
             return true;
         }
 
-        public static bool CheckDropConstraint(int row, out string errorMessage)
+        public static bool CheckDropConstraint(int row, out string errorMessage, DbService ctx)
         {
-            Constraint c = DataStore.activeTable.constraints[row];
+            Constraint c = ctx.activeTable.constraints[row];
             if (!(c is ConstraintFK))
             {
                 ConstraintFK fkRef;
-                if (DataStore.activeDatabase.GetKeyRequirementByFK(c, out fkRef))
+                if (ctx.activeDatabase.GetKeyRequirementByFK(c, out fkRef))
                 {
                     errorMessage = "Key needed in FOREIGN KEY " + fkRef.name + " of table " + fkRef.parent.name + " .";
                     return false;
@@ -491,18 +491,18 @@
             errorMessage = "";
             return true;
         }
-        public static bool CheckDropColumn(int row, out string errorMessage)
+        public static bool CheckDropColumn(int row, out string errorMessage, DbService ctx)
         {
-            if (DataStore.activeTable.columns.Count == 1)
+            if (ctx.activeTable.columns.Count == 1)
             {
                 errorMessage = "Can't drop last column.";
                 return false;
             }
-            Column c = DataStore.activeTable.columns[row];
+            Column c = ctx.activeTable.columns[row];
             List<Constraint> constraints = new List<Constraint>();
 
-            List<ConstraintFK> remote = DataStore.activeDatabase.GetColumnFKReference(c);
-            List<Constraint> local = DataStore.activeTable.GetConstraintsOfColumn(c);
+            List<ConstraintFK> remote = ctx.activeDatabase.GetColumnFKReference(c);
+            List<Constraint> local = ctx.activeTable.GetConstraintsOfColumn(c);
             constraints.AddRange(remote);
             constraints.AddRange(local);
 
@@ -538,13 +538,13 @@
             }
         }
 
-        public static bool CheckAlterColumn(int row, out string errorMessage)
+        public static bool CheckAlterColumn(int row, out string errorMessage, DbService ctx)
         {
-            Column c = DataStore.activeTable.columns[row];
+            Column c = ctx.activeTable.columns[row];
             List<Constraint> constraints = new List<Constraint>();
 
-            List<ConstraintFK> remote = DataStore.activeDatabase.GetColumnFKReference(c);
-            List<Constraint> local = DataStore.activeTable.GetConstraintsOfColumn(c);
+            List<ConstraintFK> remote = ctx.activeDatabase.GetColumnFKReference(c);
+            List<Constraint> local = ctx.activeTable.GetConstraintsOfColumn(c);
             constraints.AddRange(remote);
             constraints.AddRange(local);
 
@@ -580,13 +580,13 @@
             }
         }
 
-        public static bool CheckCreateFKConstraint(string name, bool[] arrayColumn, Table remoteTable, bool[] arrayRemoteColumn, out string errorMessage)
+        public static bool CheckCreateFKConstraint(string name, bool[] arrayColumn, Table remoteTable, bool[] arrayRemoteColumn, out string errorMessage, DbService ctx)
         {
             if (!IsValidName(name, out errorMessage))
             {
                 return false;
             }
-            foreach (Constraint c in DataStore.activeTable.constraints)
+            foreach (Constraint c in ctx.activeTable.constraints)
             {
                 if (c.name == name)
                 {
@@ -610,7 +610,7 @@
                 return false;
             }
 
-            Column localColumn = DataStore.activeTable.columns[Array.IndexOf(arrayColumn, true)];
+            Column localColumn = ctx.activeTable.columns[Array.IndexOf(arrayColumn, true)];
             Column remoteColumn = remoteTable.columns[Array.IndexOf(arrayRemoteColumn, true)];
 
             if (localColumn.type != remoteColumn.type)

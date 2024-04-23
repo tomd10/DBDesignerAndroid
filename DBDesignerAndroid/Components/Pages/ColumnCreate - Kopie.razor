@@ -3,11 +3,11 @@
 @inject NavigationManager nav
 <link rel="stylesheet" href="/styles.css" />
 <h1>Create new column</h1>
-@if(DataStore.activeDatabase == null)
+@if(ctx.activeDatabase == null)
 {
     <div class="err">No database selected</div>
 }
-else if (DataStore.activeTable == null)
+else if (ctx.activeTable == null)
 {
     <div class="err">No table selected</div>
 }
@@ -71,7 +71,7 @@ else
             <select @bind="position" id="cs">
                 <option value="" >@("")</option>
                 <option value="FIRST">@("FIRST")</option>
-                @foreach (Column c in DataStore.activeTable.columns)
+                @foreach (Column c in ctx.activeTable.columns)
                 {
                     @if(c.name != col.name)
                     {
@@ -210,13 +210,13 @@ else
         if (ct == Choices.ColumnTypes.Text)
         {
 
-            if (!Methods.AlterTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, position, col, out errorMessage))
+            if (!Methods.AlterTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, position, col, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
@@ -231,13 +231,13 @@ else
                 if (type == "MEDIUMINT") size = 9;
             }
             if (col is IntegerColumn && !(col as IntegerColumn).autoincrement) autoIncrement = false;
-            if (!Methods.AlterIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, position, col, out errorMessage))
+            if (!Methods.AlterIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, position, col, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
@@ -246,49 +246,49 @@ else
             if (size == 0) size = 10;
             if (d == 0) d = 2;
 
-            if (!Methods.AlterDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, position, col, out errorMessage))
+            if (!Methods.AlterDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, position, col, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
         if (ct == Choices.ColumnTypes.Binary)
         {
-            if (!Methods.AlterBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, position, col, out errorMessage))
+            if (!Methods.AlterBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, position, col, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
         if (ct == Choices.ColumnTypes.Enum)
         {
-            if (!Methods.AlterEnumColumn(name, type, nullAllowed, defaultValue, comment, options, position, col, out errorMessage))
+            if (!Methods.AlterEnumColumn(name, type, nullAllowed, defaultValue, comment, options, position, col, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
         if (ct == Choices.ColumnTypes.DateTime)
         {
-            if (!Methods.AlterDateTimeColumn(name, type, nullAllowed, defaultValue, comment, position, col, out errorMessage))
+            if (!Methods.AlterDateTimeColumn(name, type, nullAllowed, defaultValue, comment, position, col, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
@@ -299,12 +299,12 @@ else
         int index = -1;
         int.TryParse(columnIndex, out index);
         if (index < 0) return;
-        else if (DataStore.activeDatabase == null) return;
+        else if (ctx.activeDatabase == null) return;
         else
         {
-            if (index < DataStore.activeTable.columns.Count)
+            if (index < ctx.activeTable.columns.Count)
             {
-                col = DataStore.activeTable.columns[index];
+                col = ctx.activeTable.columns[index];
             }
             else
             {

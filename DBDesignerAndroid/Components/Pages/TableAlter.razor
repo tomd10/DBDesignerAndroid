@@ -3,7 +3,7 @@
 @inject NavigationManager nav
 <link rel="stylesheet" href="/styles.css" />
 <h1>Alter table</h1>
-@if (DataStore.activeDatabase == null)
+@if (ctx.activeDatabase == null)
 {
     <div class="err">No database selected.</div>
 }
@@ -90,7 +90,7 @@ else
     public void AlterTable()
     {
         string errorMessage = "";
-        if (Methods.AlterTable(table, name, autoIncrement, charset, charset+collate, engine, comment, out errorMessage))
+        if (Methods.AlterTable(table, name, autoIncrement, charset, charset+collate, engine, comment, out errorMessage, ctx))
         {
             StateHasChanged();
             nav.NavigateTo("/tables");
@@ -103,16 +103,16 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (DataStore.activeDatabase != null)
+        if (ctx.activeDatabase != null)
         {
             int index = -1;
             int.TryParse(tableIndex, out index);
             if (index < 0) return;
             else
             {
-                if (DataStore.activeDatabase.tables.Count > index)
+                if (ctx.activeDatabase.tables.Count > index)
                 {
-                    table = DataStore.activeDatabase.tables[index];
+                    table = ctx.activeDatabase.tables[index];
 
                     name = table.name;
                     engine = table.engine;

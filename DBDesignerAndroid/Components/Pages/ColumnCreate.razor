@@ -2,11 +2,11 @@
 @inject IJSRuntime JS
 @inject NavigationManager nav
 <link rel="stylesheet" href="/styles.css" />
-@if(DataStore.activeDatabase == null)
+@if(ctx.activeDatabase == null)
 {
     <div class="err">No database selected</div>
 }
-else if (DataStore.activeTable == null)
+else if (ctx.activeTable == null)
 {
     <div class="err">No table selected</div>
 }
@@ -185,13 +185,13 @@ else
         if (ct == Choices.ColumnTypes.Text)
         {
 
-            if (!Methods.CreateTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, out errorMessage))
+            if (!Methods.CreateTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
@@ -206,13 +206,13 @@ else
                 if (type == "MEDIUMINT") size = 9;
             }
 
-            if (!Methods.CreateIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, out errorMessage))
+            if (!Methods.CreateIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
@@ -221,49 +221,49 @@ else
             if (size == 0) size = 10;
             if (d == 0) d = 2;
 
-            if(!Methods.CreateDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, out errorMessage))
+            if(!Methods.CreateDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
         if (ct == Choices.ColumnTypes.Binary)
         {
-            if(!Methods.CreateBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, out errorMessage))
+            if(!Methods.CreateBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
         if (ct == Choices.ColumnTypes.Enum)
         {
-            if (!Methods.CreateEnumColumn(name, type, nullAllowed, defaultValue, comment, options, out errorMessage))
+            if (!Methods.CreateEnumColumn(name, type, nullAllowed, defaultValue, comment, options, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 
         if (ct == Choices.ColumnTypes.DateTime)
         {
-            if (!Methods.CreateDateTimeColumn(name, type, nullAllowed, defaultValue, comment, out errorMessage))
+            if (!Methods.CreateDateTimeColumn(name, type, nullAllowed, defaultValue, comment, out errorMessage, ctx))
             {
                 JS.InvokeVoidAsync("alert", errorMessage);
             }
             else
             {
-                nav.NavigateTo("/columns/" + Array.IndexOf(DataStore.activeDatabase.tables.ToArray(), DataStore.activeTable).ToString());
+                nav.NavigateTo("/columns/" + Array.IndexOf(ctx.activeDatabase.tables.ToArray(), ctx.activeTable).ToString());
             }
         }
 

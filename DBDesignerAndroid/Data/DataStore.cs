@@ -1,6 +1,7 @@
 ﻿namespace DBDesignerWIP
 {
-    public static class DataStore
+    /*
+    public static class ctx
     {
         public static List<Database> databases = new List<Database>();
         public static bool databasesLoaded = false;
@@ -14,4 +15,5 @@
         public static List<string> batch = new List<string>();
         public static List<string> batchDeNovo = new List<string>();
     }
+    */
 }

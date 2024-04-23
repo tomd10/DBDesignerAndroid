@@ -3,7 +3,7 @@
 @inject NavigationManager nav
 <link rel="stylesheet" href="/styles.css" />
 <h1>Create new table</h1>
-@if (DataStore.activeDatabase == null)
+@if (ctx.activeDatabase == null)
 {
     @("No database selected!")
 }
@@ -89,7 +89,7 @@ else
     public void CreateTable()
     {
         string errorMessage = "";
-        if (Methods.CreateTable(name, isTemporary, engine, charset, charset+collate, autoIncrement, comment, out errorMessage))
+        if (Methods.CreateTable(name, isTemporary, engine, charset, charset+collate, autoIncrement, comment, out errorMessage, ctx))
         {
             //JS.InvokeVoidAsync("alert", "Table " + name + " created successfully.");
             StateHasChanged();

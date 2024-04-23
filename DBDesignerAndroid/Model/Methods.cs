@@ -2,56 +2,61 @@
 {
     public static class Methods
     {
-        public static void LoadDatabases()
+        public static void LoadDatabases(DbService ctx)
         {
-            foreach (string database in DataStore.dbConnection.GetDatabases())
+            foreach (string database in ctx.dbConnection.GetDatabases())
             {
-                Database db = new Database(DataStore.dbConnection.GetCreateDatabase(database));
-                DataStore.databases.Add(db);
+                string err;
+                Database db = new Database(ctx.dbConnection.GetCreateDatabase(database));
+                if (db.name != "information_schema" && db.name != "mysql" && db.name != "performance_schema" && db.name != "sys" && db.name != "sakila" && Check.IsValidName(db.name, out err))
+                {
+                    ctx.databases.Add(db);
+                }
+                else continue;
 
-                List<string> tables = DataStore.dbConnection.GetTables(database);
+                List<string> tables = ctx.dbConnection.GetTables(database);
                 foreach (string table in tables)
                 {
-                    db.tables.Add(new Table(db, DataStore.dbConnection.GetCreateTable(database, table)));
+                    db.tables.Add(new Table(db, ctx.dbConnection.GetCreateTable(database, table)));
                 }
             }
 
-            foreach (Database db in DataStore.databases)
+            foreach (Database db in ctx.databases)
             {
                 db.LoadConstraints();
             }
         }
 
-        public static Database GetNthDatabase(int n)
+        public static Database GetNthDatabase(int n, DbService ctx)
         {
-            if (n < 0 || n >= DataStore.databases.Count)
+            if (n < 0 || n >= ctx.databases.Count)
             {
                 return null;
             }
-            else return DataStore.databases[n];
+            else return ctx.databases[n];
         }
 
-        public static bool CreateDatabase(string name, string charset, string collate, out string errorMessage)
+        public static bool CreateDatabase(string name, string charset, string collate, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckDatabaseName(name, out errorMessage))
+            if (!Check.CheckDatabaseName(name, out errorMessage, ctx))
             {
                 return false;
             }
             else
             {
                 Database db = new Database(name, charset, charset + collate, new List<Table>());
-                DataStore.databases.Add(db);
+                ctx.databases.Add(db);
 
-                DataStore.batch.Add(db.GetStatement());
+                ctx.batch.Add(db.GetStatement());
 
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool CreateTable(string name, bool isTemporary, string engine, string charset, string collate, int auto_increment, string comment, out string errorMessage)
+        public static bool CreateTable(string name, bool isTemporary, string engine, string charset, string collate, int auto_increment, string comment, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckTableName(name, out errorMessage))
+            if (!Check.CheckTableName(name, out errorMessage, ctx))
             {
                 return false;
             }
@@ -62,20 +67,20 @@
             }
             else
             {
-                Table t = new Table(name, isTemporary, engine, charset, collate, auto_increment.ToString(), comment, DataStore.activeDatabase);
+                Table t = new Table(name, isTemporary, engine, charset, collate, auto_increment.ToString(), comment, ctx.activeDatabase);
                 t.CreateDefaultColumn();
-                DataStore.activeDatabase.tables.Add(t);
+                ctx.activeDatabase.tables.Add(t);
 
-                DataStore.batch.Add(t.GetStatement());
+                ctx.batch.Add(t.GetStatement());
 
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool AlterTable(Table table, string name, int autoIncrement, string charset, string collate, string engine, string comment, out string errorMessage)
+        public static bool AlterTable(Table table, string name, int autoIncrement, string charset, string collate, string engine, string comment, out string errorMessage, DbService ctx)
         {
-            if (table.name != name && !Check.CheckTableName(name, out errorMessage))
+            if (table.name != name && !Check.CheckTableName(name, out errorMessage, ctx))
             {
                 return false;
             }
@@ -88,7 +93,7 @@
             {
                 if (name != table.name)
                 {
-                    DataStore.batch.Add(table.GetAlterName(name));
+                    ctx.batch.Add(table.GetAlterName(name));
                     table.name = name;
                 }
                 if (table.engine != engine || int.Parse(table.auto_increment) != autoIncrement || table.collate != collate || table.charset != charset || table.comment != comment)
@@ -98,7 +103,7 @@
                     table.collate = collate;
                     table.charset = charset;
                     table.comment = comment;
-                    DataStore.batch.Add(table.GetAlterStatement());
+                    ctx.batch.Add(table.GetAlterStatement());
                 }
 
 
@@ -107,28 +112,28 @@
             }
         }
 
-        public static void DropDatabase (int n, out string name)
+        public static void DropDatabase (int n, out string name, DbService ctx)
         {
-            Database db = GetNthDatabase(n);
+            Database db = GetNthDatabase(n, ctx);
             name = db.name;
-            DataStore.batch.Add(db.GetDropStatement());
+            ctx.batch.Add(db.GetDropStatement());
 
-            if (DataStore.activeTable != null && DataStore.activeTable.parent == db) DataStore.activeTable = null;
-            if (DataStore.activeDatabase == db) DataStore.activeDatabase = null;
+            if (ctx.activeTable != null && ctx.activeTable.parent == db) ctx.activeTable = null;
+            if (ctx.activeDatabase == db) ctx.activeDatabase = null;
 
-            DataStore.databases.Remove(db);
+            ctx.databases.Remove(db);
         }
 
-        public static bool DropTable(int n, out string name, out string errorMessage)
+        public static bool DropTable(int n, out string name, out string errorMessage, DbService ctx)
         {
-            Table t = DataStore.activeDatabase.GetNthTable(n);
-            List<ConstraintFK> constraints = DataStore.activeDatabase.GetTableFKReference(t);
+            Table t = ctx.activeDatabase.GetNthTable(n);
+            List<ConstraintFK> constraints = ctx.activeDatabase.GetTableFKReference(t);
             name = t.name;
             if (constraints.Count == 0)
             {
                 errorMessage = "";
-                DataStore.batch.Add(t.GetDropStatement());
-                DataStore.activeDatabase.tables.Remove(t);
+                ctx.batch.Add(t.GetDropStatement());
+                ctx.activeDatabase.tables.Remove(t);
                 return true;
             }
             else
@@ -142,9 +147,9 @@
             }
         }
 
-        public static bool CreateTextColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, string charset, string collate, out string errorMessage)
+        public static bool CreateTextColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, string charset, string collate, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, out errorMessage))
+            if (!Check.CheckTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, out errorMessage, ctx))
             {
                 return false;
             }
@@ -152,19 +157,19 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                TextColumn tc = new TextColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, size, charset, charset + collate);
-                DataStore.activeTable.columns.Add(tc);
-                DataStore.batch.Add(tc.GetAddColumnStatement());
+                TextColumn tc = new TextColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, size, charset, charset + collate);
+                ctx.activeTable.columns.Add(tc);
+                ctx.batch.Add(tc.GetAddColumnStatement());
 
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool AlterTextColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, string charset, string collate, string position, Column col, out string errorMessage)
+        public static bool AlterTextColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, string charset, string collate, string position, Column col, out string errorMessage, DbService ctx)
         {
             col.name = "TEMP " + col.name;
-            if (!Check.CheckTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, out errorMessage))
+            if (!Check.CheckTextColumn(name, type, nullAllowed, defaultValue, comment, size, charset, collate, out errorMessage, ctx))
             {
                 return false;
             }
@@ -172,8 +177,8 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                TextColumn tc = new TextColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, size, charset, charset + collate);
-                DataStore.batch.Add(col.GetAlterColumnStatement(tc, position));
+                TextColumn tc = new TextColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, size, charset, charset + collate);
+                ctx.batch.Add(col.GetAlterColumnStatement(tc, position));
                 col.ReplaceCol(tc, position);
 
                 errorMessage = "";
@@ -181,9 +186,9 @@
             }
         }
 
-        public static bool CreateIntegerColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, bool unsigned, bool zerofill, bool autoIncrement, out string errorMessage)
+        public static bool CreateIntegerColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, bool unsigned, bool zerofill, bool autoIncrement, out string errorMessage, DbService ctx)
         {
-            if(!Check.CheckIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, out errorMessage))
+            if(!Check.CheckIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, out errorMessage, ctx))
             {
                 return false;
             }
@@ -191,22 +196,22 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                IntegerColumn ic = new IntegerColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, size, unsigned, zerofill, autoIncrement);
+                IntegerColumn ic = new IntegerColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, size, unsigned, zerofill, autoIncrement);
                 if (autoIncrement)
                 {
                     ic.autoincrement = false;
-                    DataStore.activeTable.columns.Add(ic);
-                    DataStore.batch.Add(ic.GetAddColumnStatement());
-                    ConstraintK key = new ConstraintK(DataStore.activeTable, name + "_KEY_" + GetRandomString(10), new List<Column>() { ic });
-                    DataStore.batch.Add(key.GetAddStatement());
-                    DataStore.activeTable.constraints.Add(key);
+                    ctx.activeTable.columns.Add(ic);
+                    ctx.batch.Add(ic.GetAddColumnStatement());
+                    ConstraintK key = new ConstraintK(ctx.activeTable, name + "_KEY_" + GetRandomString(10), new List<Column>() { ic });
+                    ctx.batch.Add(key.GetAddStatement());
+                    ctx.activeTable.constraints.Add(key);
                     ic.autoincrement = true;
-                    DataStore.batch.Add("ALTER TABLE `" + ic.parent.parent.name + "`.`" + ic.parent.name + "` CHANGE COLUMN `" + ic.name + "` " + ic.GetStatement() + " ;");
+                    ctx.batch.Add("ALTER TABLE `" + ic.parent.parent.name + "`.`" + ic.parent.name + "` CHANGE COLUMN `" + ic.name + "` " + ic.GetStatement() + " ;");
                 }
                 else
                 {
-                    DataStore.activeTable.columns.Add(ic);
-                    DataStore.batch.Add(ic.GetAddColumnStatement());
+                    ctx.activeTable.columns.Add(ic);
+                    ctx.batch.Add(ic.GetAddColumnStatement());
                 }
 
 
@@ -216,11 +221,11 @@
         }
 
 
-        public static bool AlterIntegerColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, bool unsigned, bool zerofill, bool autoIncrement, string position, Column col, out string errorMessage)
+        public static bool AlterIntegerColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, bool unsigned, bool zerofill, bool autoIncrement, string position, Column col, out string errorMessage, DbService ctx)
         {
             col.name = "TEMP " + col.name;
             if (col is IntegerColumn) { (col as IntegerColumn).autoincrement = false; }
-            if (!Check.CheckIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, out errorMessage))
+            if (!Check.CheckIntegerColumn(name, type, nullAllowed, defaultValue, comment, size, unsigned, zerofill, autoIncrement, out errorMessage, ctx))
             {
                 return false;
             }
@@ -229,17 +234,17 @@
 
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                IntegerColumn ic = new IntegerColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, size, unsigned, zerofill, autoIncrement);
-                DataStore.batch.Add(col.GetAlterColumnStatement(ic, position));
+                IntegerColumn ic = new IntegerColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, size, unsigned, zerofill, autoIncrement);
+                ctx.batch.Add(col.GetAlterColumnStatement(ic, position));
                 col.ReplaceCol(ic, position);
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool CreateDecimalColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, int d, out string errorMessage)
+        public static bool CreateDecimalColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, int d, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, out errorMessage))
+            if (!Check.CheckDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, out errorMessage, ctx))
             {
                 return false;
             }
@@ -247,19 +252,19 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                DecimalColumn dc = new DecimalColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, size, d);
-                DataStore.activeTable.columns.Add(dc);
-                DataStore.batch.Add(dc.GetAddColumnStatement());
+                DecimalColumn dc = new DecimalColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, size, d);
+                ctx.activeTable.columns.Add(dc);
+                ctx.batch.Add(dc.GetAddColumnStatement());
 
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool AlterDecimalColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, int d, string position, Column col, out string errorMessage)
+        public static bool AlterDecimalColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, int d, string position, Column col, out string errorMessage, DbService ctx)
         {
             col.name = "TEMP " + col.name;
-            if (!Check.CheckDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, out errorMessage))
+            if (!Check.CheckDecimalColumn(name, type, nullAllowed, defaultValue, comment, size, d, out errorMessage, ctx))
             {
                 return false;
             }
@@ -267,8 +272,8 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                DecimalColumn dc = new DecimalColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, size, d);
-                DataStore.batch.Add(col.GetAlterColumnStatement(dc, position));
+                DecimalColumn dc = new DecimalColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, size, d);
+                ctx.batch.Add(col.GetAlterColumnStatement(dc, position));
                 col.ReplaceCol(dc, position);
 
                 errorMessage = "";
@@ -276,9 +281,9 @@
             }
         }
 
-        public static bool CreateEnumColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, string options, out string errorMessage)
+        public static bool CreateEnumColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, string options, out string errorMessage, DbService ctx)
         {
-            if(!Check.CheckEnumColumn(name, type, nullAllowed, defaultValue, comment, options, out errorMessage))
+            if(!Check.CheckEnumColumn(name, type, nullAllowed, defaultValue, comment, options, out errorMessage, ctx))
             {
                 return false;
             }
@@ -287,18 +292,18 @@
                 List<string> opt = options.Trim().Split(",").ToList(); for (int i = 0; i < opt.Count; i++) { opt[i] = opt[i].Trim(); }
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                EnumColumn ec = new EnumColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, opt);
-                DataStore.activeTable.columns.Add(ec);
-                DataStore.batch.Add(ec.GetAddColumnStatement());
+                EnumColumn ec = new EnumColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, opt);
+                ctx.activeTable.columns.Add(ec);
+                ctx.batch.Add(ec.GetAddColumnStatement());
 
                 errorMessage = "";
                 return true;
             }
         }
-        public static bool AlterEnumColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, string options, string position, Column col, out string errorMessage)
+        public static bool AlterEnumColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, string options, string position, Column col, out string errorMessage, DbService ctx)
         {
             col.name = "TEMP " + col.name;
-            if (!Check.CheckEnumColumn(name, type, nullAllowed, defaultValue, comment, options, out errorMessage))
+            if (!Check.CheckEnumColumn(name, type, nullAllowed, defaultValue, comment, options, out errorMessage, ctx))
             {
                 return false;
             }
@@ -307,8 +312,8 @@
                 List<string> opt = options.Trim().Split(",").ToList(); for (int i = 0; i < opt.Count; i++) { opt[i] = opt[i].Trim(); }
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                EnumColumn ec = new EnumColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, opt);
-                DataStore.batch.Add(col.GetAlterColumnStatement(ec, position));
+                EnumColumn ec = new EnumColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, opt);
+                ctx.batch.Add(col.GetAlterColumnStatement(ec, position));
                 col.ReplaceCol(ec, position);
 
                 errorMessage = "";
@@ -316,9 +321,9 @@
             }
         }
 
-        public static bool CreateBinaryColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, out string errorMessage)
+        public static bool CreateBinaryColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, out errorMessage))
+            if (!Check.CheckBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, out errorMessage, ctx))
             {
                 return false;
             }
@@ -326,19 +331,19 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                BinaryColumn bc = new BinaryColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, size);
-                DataStore.activeTable.columns.Add(bc);
-                DataStore.batch.Add(bc.GetAddColumnStatement());
+                BinaryColumn bc = new BinaryColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, size);
+                ctx.activeTable.columns.Add(bc);
+                ctx.batch.Add(bc.GetAddColumnStatement());
 
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool AlterBinaryColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, string position, Column col, out string errorMessage)
+        public static bool AlterBinaryColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, int size, string position, Column col, out string errorMessage, DbService ctx)
         {
             col.name = "TEMP " + col.name;
-            if (!Check.CheckBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, out errorMessage))
+            if (!Check.CheckBinaryColumn(name, type, nullAllowed, defaultValue, comment, size, out errorMessage, ctx))
             {
                 return false;
             }
@@ -346,8 +351,8 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                BinaryColumn bc = new BinaryColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, size);
-                DataStore.batch.Add(col.GetAlterColumnStatement(bc, position));
+                BinaryColumn bc = new BinaryColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, size);
+                ctx.batch.Add(col.GetAlterColumnStatement(bc, position));
                 col.ReplaceCol(bc, position);
 
                 errorMessage = "";
@@ -355,9 +360,9 @@
             }
         }
 
-        public static bool CreateDateTimeColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, out string errorMessage)
+        public static bool CreateDateTimeColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckDateTimeColumn(name, type, nullAllowed, defaultValue, comment, out errorMessage))
+            if (!Check.CheckDateTimeColumn(name, type, nullAllowed, defaultValue, comment, out errorMessage, ctx))
             {
                 return false;
             }
@@ -365,19 +370,19 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                DateTimeColumn dt = new DateTimeColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, "");
-                DataStore.activeTable.columns.Add(dt);
-                DataStore.batch.Add(dt.GetAddColumnStatement());
+                DateTimeColumn dt = new DateTimeColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, "");
+                ctx.activeTable.columns.Add(dt);
+                ctx.batch.Add(dt.GetAddColumnStatement());
 
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool AlterDateTimeColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, string position, Column col, out string errorMessage)
+        public static bool AlterDateTimeColumn(string name, string type, bool nullAllowed, string defaultValue, string comment, string position, Column col, out string errorMessage, DbService ctx)
         {
             col.name = "TEMP " + col.name;
-            if (!Check.CheckDateTimeColumn(name, type, nullAllowed, defaultValue, comment, out errorMessage))
+            if (!Check.CheckDateTimeColumn(name, type, nullAllowed, defaultValue, comment, out errorMessage, ctx))
             {
                 return false;
             }
@@ -385,9 +390,9 @@
             {
                 string? defa = (defaultValue.ToUpper() == "#NULL") ? null : defaultValue;
                 bool defaultValueSupported = !(defaultValue == "");
-                DateTimeColumn dt = new DateTimeColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, DataStore.activeTable, "");
+                DateTimeColumn dt = new DateTimeColumn(name, nullAllowed, type, defaultValueSupported, defa, comment, ctx.activeTable, "");
 
-                DataStore.batch.Add(col.GetAlterColumnStatement(dt, position));
+                ctx.batch.Add(col.GetAlterColumnStatement(dt, position));
                 col.ReplaceCol(dt, position);
 
                 errorMessage = "";
@@ -395,42 +400,42 @@
             }
         }
 
-        public static bool DropConstraint(int row, out string errorMessage)
+        public static bool DropConstraint(int row, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckDropConstraint(row, out errorMessage))
+            if (!Check.CheckDropConstraint(row, out errorMessage, ctx))
             {
                 return false;
             }
             else
             {
-                Constraint c = DataStore.activeTable.constraints[row];
-                DataStore.batch.Add(c.GetDropStatement());
-                DataStore.activeTable.constraints.Remove(c);
+                Constraint c = ctx.activeTable.constraints[row];
+                ctx.batch.Add(c.GetDropStatement());
+                ctx.activeTable.constraints.Remove(c);
 
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool DropColumn(int row, out string errorMessage)
+        public static bool DropColumn(int row, out string errorMessage, DbService ctx)
         {
-            if(!Check.CheckDropColumn(row, out errorMessage))
+            if(!Check.CheckDropColumn(row, out errorMessage, ctx))
             {
                 return false;
             }
             else
             {
-                Column c = DataStore.activeTable.columns[row];
-                DataStore.batch.Add(c.GetDropStatement());
-                DataStore.activeTable.columns.Remove(c);
+                Column c = ctx.activeTable.columns[row];
+                ctx.batch.Add(c.GetDropStatement());
+                ctx.activeTable.columns.Remove(c);
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static bool AlterColumn(int row, out string errorMessage)
+        public static bool AlterColumn(int row, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckAlterColumn(row, out errorMessage))
+            if (!Check.CheckAlterColumn(row, out errorMessage, ctx))
             {
                 return false;
             }
@@ -445,36 +450,36 @@
                 .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
-        public static void DropAutoIncrement(int row)
+        public static void DropAutoIncrement(int row, DbService ctx)
         {
-            if (DataStore.activeTable.columns[row] is IntegerColumn && (DataStore.activeTable.columns[row] as IntegerColumn).autoincrement)
+            if (ctx.activeTable.columns[row] is IntegerColumn && (ctx.activeTable.columns[row] as IntegerColumn).autoincrement)
             {
-                IntegerColumn ic = (IntegerColumn)DataStore.activeTable.columns[row];
+                IntegerColumn ic = (IntegerColumn)ctx.activeTable.columns[row];
 
                 ic.autoincrement = false;
-                DataStore.batch.Add("ALTER TABLE `" + ic.parent.parent.name + "`.`" + ic.parent.name + "` CHANGE COLUMN `" + ic.name + "` " + ic.GetStatement() + ";");
-                for  (int i = 0; i < DataStore.activeTable.constraints.Count; i++)/*(Constraint c in DataStore.activeTable.constraints)*/
+                ctx.batch.Add("ALTER TABLE `" + ic.parent.parent.name + "`.`" + ic.parent.name + "` CHANGE COLUMN `" + ic.name + "` " + ic.GetStatement() + ";");
+                for  (int i = 0; i < ctx.activeTable.constraints.Count; i++)/*(Constraint c in ctx.activeTable.constraints)*/
                 {
-                    Constraint c = DataStore.activeTable.constraints[i];
+                    Constraint c = ctx.activeTable.constraints[i];
                     if (c is ConstraintK)
                     {
                         ConstraintK k = (ConstraintK)c;
                         if (k.localColumns.Count == 1 && k.localColumns.Contains(ic))
                         {
-                            DataStore.activeTable.constraints.Remove(c);
+                            ctx.activeTable.constraints.Remove(c);
                         }
                     }
                 }
             }
         }
 
-        public static bool CreateSimpleConstraint(Choices.ConstraintTypes ct,string name, bool[] arrayColumn, out string errorMessage)
+        public static bool CreateSimpleConstraint(Choices.ConstraintTypes ct,string name, bool[] arrayColumn, out string errorMessage, DbService ctx)
         {
             if(!Check.IsValidName(name, out errorMessage) && ct != Choices.ConstraintTypes.PrimaryKey)
             {
                 return false;
             }
-            foreach (Constraint c in  DataStore.activeTable.constraints)
+            foreach (Constraint c in  ctx.activeTable.constraints)
             {
                 if (c.name == name)
                 {
@@ -487,36 +492,36 @@
                 errorMessage = "At least one column must be selected.";
                 return false;
             }
-            if (ct == Choices.ConstraintTypes.PrimaryKey && DataStore.activeTable.GetPrimaryKey() != null)
+            if (ct == Choices.ConstraintTypes.PrimaryKey && ctx.activeTable.GetPrimaryKey() != null)
             {
-                errorMessage = "Primary key of table `" + DataStore.activeTable.name + "` already exists.";
+                errorMessage = "Primary key of table `" + ctx.activeTable.name + "` already exists.";
                 return false;
             }
 
             List<Column> list = new List<Column>();
-            for (int i = 0; i < DataStore.activeTable.columns.Count; i++)
+            for (int i = 0; i < ctx.activeTable.columns.Count; i++)
             {
-                if (arrayColumn[i]) list.Add(DataStore.activeTable.columns[i]);
+                if (arrayColumn[i]) list.Add(ctx.activeTable.columns[i]);
             }
 
             Constraint k = null;
             if (ct == Choices.ConstraintTypes.Key)
             {
-                k = new ConstraintK(DataStore.activeTable, name, list);
+                k = new ConstraintK(ctx.activeTable, name, list);
             }
 
             if (ct == Choices.ConstraintTypes.PrimaryKey)
             {
-                k = new ConstraintPK(DataStore.activeTable, list);
+                k = new ConstraintPK(ctx.activeTable, list);
             }
 
             if (ct == Choices.ConstraintTypes.UniqueKey)
             {
-                k = new ConstraintUQ(DataStore.activeTable, name, list);
+                k = new ConstraintUQ(ctx.activeTable, name, list);
             }
 
-            DataStore.activeTable.constraints.Add(k);
-            DataStore.batch.Add(k.GetAddStatement());
+            ctx.activeTable.constraints.Add(k);
+            ctx.batch.Add(k.GetAddStatement());
 
             errorMessage = "";
             return true;
@@ -531,52 +536,128 @@
             return ct;
         }
 
-        public static bool CreateFKConstraint(string name, bool[] arrayColumn, Table remoteTable, bool[] arrayRemoteColumn, out string errorMessage)
+        public static bool CreateFKConstraint(string name, bool[] arrayColumn, Table remoteTable, bool[] arrayRemoteColumn, out string errorMessage, DbService ctx)
         {
-            if (!Check.CheckCreateFKConstraint(name, arrayColumn, remoteTable, arrayRemoteColumn, out errorMessage))
+            if (!Check.CheckCreateFKConstraint(name, arrayColumn, remoteTable, arrayRemoteColumn, out errorMessage, ctx))
             {
                 return false;
             }
             else
             {
-                Column localColumn = DataStore.activeTable.columns[Array.IndexOf(arrayColumn, true)];
+                Column localColumn = ctx.activeTable.columns[Array.IndexOf(arrayColumn, true)];
                 Column remoteColumn = remoteTable.columns[Array.IndexOf(arrayRemoteColumn, true)];
 
                 ConstraintK k = new ConstraintK(remoteTable, remoteColumn.name + "_KEY_" + GetRandomString(10), new List<Column>() { remoteColumn });
                 remoteTable.constraints.Add(k);
-                DataStore.batch.Add(k.GetAddStatement());
+                ctx.batch.Add(k.GetAddStatement());
 
-                ConstraintFK fk = new ConstraintFK(DataStore.activeTable, name, new List<Column>() { localColumn}, new List<Column>() { remoteColumn }, remoteTable, "", "");
-                DataStore.activeTable.constraints.Add(fk);
-                DataStore.batch.Add(fk.GetAddStatement());
+                ConstraintFK fk = new ConstraintFK(ctx.activeTable, name, new List<Column>() { localColumn}, new List<Column>() { remoteColumn }, remoteTable, "", "");
+                ctx.activeTable.constraints.Add(fk);
+                ctx.batch.Add(fk.GetAddStatement());
 
                 errorMessage = "";
                 return true;
             }
         }
 
-        public static void CreateBatchDeNovo()
+        public static void CreateBatchDeNovo(DbService ctx)
         {
             List<string> list = new List<string>();
 
-            foreach (Database db in DataStore.databases)
+            foreach (Database db in ctx.databases)
             {
                 if (db.name == "sys" || db.name == "information_schema" || db.name == "performance_schema" || db.name == "mysql") continue;
                 list.Add(db.GetDropStatement());
                 list.Add(db.GetStatement());
             }
 
-            foreach (Database db in DataStore.databases)
+            
+            foreach (Database db in ctx.databases)
             {
                 if (db.name == "sys" || db.name == "information_schema" || db.name == "performance_schema" || db.name == "mysql") continue;
-                foreach (Table table in db.tables)
+                List<Table> processedTables = new List<Table>();
+
+                int processed = 0;
+
+                foreach (Table t in db.tables)
                 {
-                    
-                    list.Add(table.GetStatement());
+                    Console.WriteLine("---" + t.name);
                 }
+
+                //#1 Tables unreferenced by FOREIGN KEY
+                for(int i = 0; i<db.tables.Count; i++)
+                {
+                    bool match = false;
+
+                    foreach (Constraint c in db.tables[i].constraints)
+                    {
+                        if (c is ConstraintFK)
+                        {
+                            ConstraintFK fk = (ConstraintFK)c;
+                            if (fk.parent != db.tables[i]) continue;
+                            if (!processedTables.Contains(fk.remoteTable))
+                            {
+                                match = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!match)
+                    {
+                        list.Add(db.tables[i].GetStatement());
+                        processedTables.Add(db.tables[i]);
+                        processed++;
+                        Console.Write(db.tables[i].name + " ");
+                    }
+                }
+
+                Console.WriteLine();
+                //#2 Tables referenced by 
+                while (processed < db.tables.Count)
+                {
+                    for (int i = 0; i < db.tables.Count; i++)
+                    {
+                        if (processedTables.Contains(db.tables[i])) { continue; }
+                        List<ConstraintFK> listFK = db.GetTableFKReference(db.tables[i]);
+
+                        Console.WriteLine("processing" + db.tables[i].name +" start");
+                        bool match = false;
+                        foreach (Constraint c in db.tables[i].constraints)
+                        {
+                            if (c is ConstraintFK)
+                            {
+                                ConstraintFK fk = (ConstraintFK)c;
+                                if (fk.parent != db.tables[i]) continue;
+                                if (!processedTables.Contains(fk.remoteTable))
+                                {
+                                    match = true;
+                                    break;
+                                }
+                            }
+                        }
+                        /*
+                        {
+                            Console.WriteLine(constraintFK.remoteTable.name);
+                            if (!processedTables.Contains(constraintFK.remoteTable))
+                            {
+                                match = true;
+                            }
+                        }
+                        Console.WriteLine("end");
+                        */
+                        if (match == false)
+                        {
+                            processedTables.Add(db.tables[i]);
+                            processed++;
+                            list.Add(db.tables[i].GetStatement());
+                        }
+                    }
+                }
+                
             }
 
-            DataStore.batchDeNovo = list;
+            ctx.batchDeNovo = list;
         }
     }
 }

@@ -101,6 +101,11 @@ namespace DBDesignerWIP
                     cmd.CommandText = comm;
                     cmd.ExecuteNonQuery();
                 }
+                catch (MySqlException e)
+                {
+                    errors.Add(comm);
+                    errors.Add("with reason: " + e.Message);
+                }
                 catch
                 {
                     errors.Add(comm);

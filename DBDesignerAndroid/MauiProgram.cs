@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using DBDesignerWIP;
+using Microsoft.Extensions.Logging;
 
 namespace DBDesignerAndroid
 {
@@ -15,6 +16,7 @@ namespace DBDesignerAndroid
                 });
 
             builder.Services.AddMauiBlazorWebView();
+            builder.Services.AddScoped<DbService>();
 
 #if DEBUG
     		builder.Services.AddBlazorWebViewDeveloperTools();

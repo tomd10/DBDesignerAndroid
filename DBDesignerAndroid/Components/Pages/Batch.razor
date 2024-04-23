@@ -32,7 +32,7 @@
 <button @onclick="ToggleBatch" class="upperButton">Batch/De novo</button>
 <button @onclick="Copy" class="upperButton">Copy to clipboard</button>
 <button @onclick="Download" class="upperButton">Download file</button>
-@if(DataStore.dbConnection != null)
+    @if (ctx.dbConnection != null)
 {
     <button @onclick="ExecuteCommands" class="upperButton">Execute commands</button>
 }
@@ -40,7 +40,7 @@
 @if(batch)
 {
     <div class="commandsBox">
-        @foreach (string s in DataStore.batch)
+        @foreach (string s in ctx.batch)
         {
 
             string[] words = s.Split(" ");
@@ -80,13 +80,14 @@
 else
 {
     <div class="commandsBox">
-        @foreach (string s in DataStore.batchDeNovo)
+        @foreach (string s in ctx.batchDeNovo)
         {
             Console.WriteLine(s);
             string[] words = s.Split(" ");
             <div class="commandLine">
                 @for (int i = 0; i < words.Length; i++)
                 {
+                    Console.WriteLine("#" + words[i] + "#");
                     string[] subwords = words[i].Split("=");
                     
                     string[] subwords1 = words[i].Split("(");
@@ -108,13 +109,20 @@ else
                     }
                     else
                     {
-                        @(words[i] + " ")
+                        if (words[i].Length > 2 && Choices.keywords.Contains(words[i].Substring(2, words[i].Length-2)))
+                        {
+                            @(words[i].Substring(0,2))
+                            <span class="keyword">@(words[i].Substring(2, words[i].Length-2))@(" ")</span>
+                        }
+                        else
+                        {
+                            @(words[i] + " ")
+                        }                      
                     }
-
-
                 }
 
             </div>
+            
         }
     </div>
 
@@ -137,11 +145,12 @@ else
         List<string> errors;
         if (batch)
         {
-            errors = DataStore.dbConnection.ExecuteBatch(DataStore.batch);
+            errors = ctx.dbConnection.ExecuteBatch(ctx.batch);
+            ctx.batch = new List<string>();
         }
         else
         {
-            errors = DataStore.dbConnection.ExecuteBatch(DataStore.batchDeNovo);
+            errors = ctx.dbConnection.ExecuteBatch(ctx.batchDeNovo);
         }
 
         if (errors.Count > 0)
@@ -161,18 +170,18 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        Methods.CreateBatchDeNovo();
+        Methods.CreateBatchDeNovo(ctx);
     }
 
     public void Restart()
     {
-        DataStore.databases = new List<Database>();
-        DataStore.databasesLoaded = false;
-        DataStore.activeDatabase = null;
-        DataStore.activeTable = null;
-        DataStore.dbConnection = null;
-        DataStore.batch = new List<string>();
-        DataStore.batchDeNovo = new List<string>();
+        ctx.databases = new List<Database>();
+        ctx.databasesLoaded = false;
+        ctx.activeDatabase = null;
+        ctx.activeTable = null;
+        ctx.dbConnection = null;
+        ctx.batch = new List<string>();
+        ctx.batchDeNovo = new List<string>();
     }
 
     public async void Download()
@@ -180,11 +189,11 @@ else
         string result = "";
         if (batch)
         {
-            foreach (string s in DataStore.batch) result = result + s + "\n";
+            foreach (string s in ctx.batch) result = result + s + "\n";
         }
         else
         {
-            foreach (string s in DataStore.batchDeNovo) result = result + s + "\n";
+            foreach (string s in ctx.batchDeNovo) result = result + s + "\n";
         }
 
         MemoryStream fileStream = new MemoryStream(Encoding.UTF8.GetBytes(result));
@@ -199,11 +208,11 @@ else
         string result = "";
         if (batch)
         {
-            foreach (string s in DataStore.batch) result = result + s + "\n";
+            foreach (string s in ctx.batch) result = result + s + "\n";
         }
         else
         {
-            foreach (string s in DataStore.batchDeNovo) result = result + s + "\n";
+            foreach (string s in ctx.batchDeNovo) result = result + s + "\n";
         }
         textToCopy = result;
         StateHasChanged();

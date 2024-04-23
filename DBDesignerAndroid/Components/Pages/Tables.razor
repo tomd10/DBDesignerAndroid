@@ -3,7 +3,7 @@
 @inject NavigationManager nav
 <link rel="stylesheet" href="styles.css" />
 <h1>Tables</h1>
-@if(DataStore.activeDatabase == null)
+@if (ctx.activeDatabase == null)
 {
     <div class="err">@("No database selected!")</div>
  
@@ -32,7 +32,7 @@ else
             @{
                 counter = 0;
             }
-            @foreach (Table t in DataStore.activeDatabase.tables)
+            @foreach (Table t in ctx.activeDatabase.tables)
             {
                 int counter2 = counter;
                 <tr>
@@ -66,7 +66,7 @@ else
     public void Drop(int row)
     {
         string name, errorMessage;
-        if (Methods.DropTable(row, out name, out errorMessage))
+        if (Methods.DropTable(row, out name, out errorMessage, ctx))
         {
 
         }

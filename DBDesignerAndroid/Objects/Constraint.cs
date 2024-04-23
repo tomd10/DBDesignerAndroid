@@ -48,7 +48,7 @@
             {
                 return new ConstraintK(parent, cmd);
             }
-            return null;
+            throw new NotImplementedException("Unsupported constraint.");
         }
     }
 
