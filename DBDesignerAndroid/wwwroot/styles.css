@@ -125,7 +125,7 @@ thead tr
 
 .formWrapper
 {
-    max-width: 70%;
+    width: 100%;
     border: 3px solid black;
     margin-bottom: 1em;
 }
